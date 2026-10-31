@@ -247,3 +247,95 @@ test_that("unconditional active covariance has the Brownian contrast geometry", 
         tolerance = 1e-10
     )
 })
+
+
+test_that("comparison normalization preserves exact probabilities and units", {
+    # Ratio of two independent rank-one forms has a noncentral F law.
+    conditional <- 1 / 3
+    unconditional <- 1 / 2
+    ncp <- 1.2604166666666667
+    reference <- stats::pf(
+        unconditional / conditional, 1, 1, ncp = ncp, lower.tail = FALSE
+    )
+    for (scale in c(1e-20, 1e-14, 1e-8, 1, 1e8, 1e20)) {
+        answer <- .indefinite_quadratic_probability(
+            conditional * scale, ncp, unconditional * scale
+        )
+        expect_true(answer$convergence)
+        expect_equal(answer$probability, reference, tolerance = 2e-6)
+        expect_equal(
+            answer$weights / scale, c(conditional, -unconditional),
+            tolerance = 1e-14
+        )
+    }
+})
+
+
+test_that("Imhof fallback is stable for rescaled shifted distributions", {
+    testthat::local_mocked_bindings(
+        .quadratic_form_tail_davies = function(...) {
+            list(probability = NA_real_, convergence = FALSE,
+                 diagnostic = "forced Davies failure")
+        },
+        .package = "PastMoments"
+    )
+    reference <- stats::integrate(
+        function(z) stats::pchisq((0.7 * z + 0.15) / 1.3, 1) *
+            stats::dchisq(z, 1, ncp = 1.2),
+        0, Inf, rel.tol = 1e-9
+    )$value
+    for (scale in c(1e-16, 1, 1e16)) {
+        answer <- .indefinite_quadratic_probability(
+            0.7 * scale, 1.2, 1.3 * scale,
+            conditional_shift = 0.15 * scale, accuracy = 1e-8
+        )
+        expect_identical(answer$method, "imhof")
+        expect_true(answer$convergence)
+        expect_equal(answer$probability, reference, tolerance = 2e-6)
+        expect_equal(answer$shift / scale, 0.15)
+    }
+})
+
+
+test_that("normalization preserves deterministic cases and shared offsets", {
+    for (scale in c(1e-20, 1, 1e20)) {
+        larger <- .indefinite_quadratic_probability(
+            numeric(), numeric(), numeric(), conditional_shift = scale
+        )
+        tied <- .indefinite_quadratic_probability(
+            numeric(), numeric(), numeric(),
+            conditional_shift = scale, unconditional_shift = scale
+        )
+        expect_identical(larger$probability, 1)
+        expect_identical(tied$probability, 0)
+    }
+    baseline <- .indefinite_quadratic_probability(c(0.3, 1.7), c(0, 0), 1)
+    shared_offset <- .indefinite_quadratic_probability(
+        c(0.3, 1.7), c(0, 0), 1,
+        conditional_shift = 1e20, unconditional_shift = 1e20
+    )
+    expect_equal(shared_offset$probability, baseline$probability)
+})
+
+
+test_that("public disparity reconstruction is invariant across trait units", {
+    tree <- example_tree()
+    trait <- example_trait()
+    for (sigma2 in list(1, NULL)) {
+        reference <- reconstruct_empirical_moments(
+            tree, trait, times = c(0.5, 1.5, 2), sigma2 = sigma2,
+            quantities = "disparity_level"
+        )
+        for (scale in c(1e-7, 1e-4, 1e4, 1e7)) {
+            rescaled <- reconstruct_empirical_moments(
+                tree, trait * scale, times = c(0.5, 1.5, 2),
+                sigma2 = if (is.null(sigma2)) NULL else sigma2 * scale^2,
+                quantities = "disparity_level"
+            )
+            expect_equal(
+                rescaled$data$disparity_level,
+                reference$data$disparity_level, tolerance = 2e-6
+            )
+        }
+    }
+})

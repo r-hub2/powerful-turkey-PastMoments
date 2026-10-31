@@ -207,7 +207,10 @@
     C0 <- (C0 + t(C0)) / 2
 
     if (isTRUE(check_psd)) {
-        .check_psd(C0, sprintf("conditional covariance at time %g", time), psd_tol)
+        .check_psd(
+            C0, sprintf("conditional covariance at time %g", time), psd_tol,
+            covariance_scale = max(abs(MXX))
+        )
     }
 
     list(

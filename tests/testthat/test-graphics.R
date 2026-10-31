@@ -603,3 +603,46 @@ test_that("geological scale validates its plotting context", {
         expect_true(is.list(variance_disparity_info$disparity_level))
     }
 })
+
+
+test_that("empirical spread padding is honored in every mean layout", {
+    x <- reconstruct_empirical_moments(
+        example_tree(), example_trait(), times=c(.5,1.5,2), sigma2=1
+    )
+    grDevices::pdf(file = tempfile(fileext=".pdf"), width=10, height=10)
+    on.exit(grDevices::dev.off(), add=TRUE)
+    reference <- plot(x, panels="mean", mean_envelope="expected_sd",
+                      mean_style=list(ylim_expand=.5))
+    for (panels in list(c("mean","variance"), c("tree","mean"),
+                        c("mean","disparity_level"),
+                        c("tree","mean","variance","disparity_level"))) {
+        actual <- plot(x,panels=panels,mean_envelope="expected_sd",
+                       mean_style=list(ylim_expand=.5))
+        expect_equal(actual$mean$ylim, reference$ylim)
+    }
+    expect_error(plot(x,mean_style=list(ylim_expand=-1)), "nonnegative scalar")
+})
+
+
+test_that("a tree-only geological plot draws its time axis", {
+    skip_if_not_installed("palaeoverse")
+    calls <- 0L
+    testthat::local_mocked_bindings(
+        .draw_geological_time_axis = function(...) {
+            calls <<- calls + 1L
+            invisible(TRUE)
+        },
+        .package = "PastMoments"
+    )
+    x <- reconstruct_empirical_moments(
+        example_tree(), example_trait(), times=c(.5,1.5,2), sigma2=1
+    )
+    grDevices::pdf(file=tempfile(fileext=".pdf"),width=10,height=8)
+    on.exit(grDevices::dev.off(),add=TRUE)
+    before <- graphics::par("oma")
+    info <- plot(x, panels="tree", geological_scale=TRUE,
+                 time_orientation="before_present")
+    expect_identical(calls, 1L)
+    expect_true(info$geological_scale)
+    expect_equal(graphics::par("oma"), before)
+})

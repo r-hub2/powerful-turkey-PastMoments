@@ -23,6 +23,15 @@
   selected with `quantities = "disparity_level"`, optional time-dependent
   `disparity_level` output, and an optional `"disparity_level"` entry in
   `plot()`'s `panels` argument.
+* Normalize Brownian variance comparisons before spectral filtering and
+  integration so disparity probabilities remain stable across trait units.
+* Normalize variance-quantile inversion and use covariance-relative spectral
+  tolerances, including a cancellation scale for conditional covariances.
+* Reject non-finite traits, ambiguous tip names, and nonnumeric trait input.
+* Allow for floating-point roundoff at lineage endpoints so changing time
+  units does not lose contemporaneous tips or double-count branching lineages.
+* Draw time axes for tree-only plots and honor empirical-spread y-axis padding
+  in every panel layout. Clarify colour requirements in the plot documentation.
 * Consolidated reconstruction calculations into
   `reconstruct_empirical_moments()`. Its `quantities` argument selects
   `"mean"`, `"variance"`, and/or `"disparity_level"`, with all three enabled

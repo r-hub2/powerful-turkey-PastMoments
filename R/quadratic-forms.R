@@ -107,7 +107,8 @@
 ## Empirical variance: quadratic-form decomposition and quantiles
 ## =============================================================================
 
-.empvar_decomposition <- function(mu, C0, tol = 1e-12) {
+.empvar_decomposition <- function(mu, C0, tol = 1e-12,
+                                  covariance_scale = 0) {
     # Decompose (n - 1) S^2 as
     #
     #   shift + sum_i lambda_i (eta_i + sqrt(sigma2) Z_i)^2,
@@ -133,7 +134,11 @@
     Pmu <- as.numeric(mu - mean(mu))
 
     ec <- eigen(C0, symmetric = TRUE)
-    tol_C <- tol * max(1, max(abs(ec$values)))
+    # The Schur complement can be zero up to cancellation error at observed
+    # tips. Its reference scale is supplied in the same time units as C0;
+    # an absolute floor of one would erase real covariance in small units.
+    spectral_scale <- max(covariance_scale, abs(ec$values))
+    tol_C <- tol * spectral_scale
 
     warning_tol_C <- 100 * tol_C
     if (min(ec$values) < -warning_tol_C) {
@@ -165,7 +170,7 @@
 
     # Since lambda_i = d_i^2, apply the relative tolerance on squared singular
     # values. This reliably removes the structural null direction of P.
-    tol_d <- sqrt(tol * max(1, max(sA$d)^2))
+    tol_d <- sqrt(tol * max(covariance_scale, max(sA$d)^2))
     keep_d <- sA$d > tol_d
 
     if (!any(keep_d)) {
@@ -185,7 +190,7 @@
     lambda <- d^2
     eta <- projected_mean / d
     shift <- sum(Pmu^2) - sum(projected_mean^2)
-    shift_tol <- 100 * tol * max(1, sum(Pmu^2))
+    shift_tol <- 100 * tol * sum(Pmu^2)
 
     if (is.finite(shift) && shift < 0 && shift > -shift_tol) {
         shift <- 0
@@ -229,7 +234,7 @@
     if (is.null(spectral_tol)) {
         spectral_tol <- 1e-12
     }
-    lambda_scale <- max(1, abs(lambda), na.rm = TRUE)
+    lambda_scale <- max(0, abs(lambda), na.rm = TRUE)
     lambda_tol <- spectral_tol * lambda_scale
     if (any(!is.finite(lambda)) || any(!is.finite(eta))) {
         stop("Non-finite spectral parameter in empirical-standard-deviation integration.")
@@ -330,21 +335,22 @@
 }
 
 .empvar_quantile_rank1 <- function(target_survival, lambda, eta, sigma2) {
-    s <- sqrt(sigma2)
+    scale <- eta^2 + sigma2
+    eta_scaled <- eta / sqrt(scale)
+    s <- sqrt(sigma2 / scale)
 
     survival_q <- function(q) {
         if (q <= 0) {
             return(1)
         }
         r <- sqrt(q)
-        stats::pnorm((-r - eta) / s) +
-            stats::pnorm((r - eta) / s, lower.tail = FALSE)
+        stats::pnorm((-r - eta_scaled) / s) +
+            stats::pnorm((r - eta_scaled) / s, lower.tail = FALSE)
     }
 
     f <- function(q) survival_q(q) - target_survival
-    mean_q <- eta^2 + sigma2
-    var_q <- 2 * (sigma2^2 + 2 * sigma2 * eta^2)
-    upper <- max(mean_q + 10 * sqrt(var_q), .Machine$double.eps)
+    var_q <- 2 * s^2 * (s^2 + 2 * eta_scaled^2)
+    upper <- 1 + 10 * sqrt(var_q)
     f_upper <- f(upper)
 
     while (!is.finite(f_upper) || f_upper > 0) {
@@ -355,7 +361,7 @@
         }
     }
 
-    lambda * stats::uniroot(
+    lambda * scale * stats::uniroot(
         f,
         lower = 0,
         upper = upper,
@@ -437,10 +443,12 @@
 }
 
 
-.empvar_quantile_davies <- function(target_survival, lambda, eta, sigma2) {
+.empvar_quantile_compquad <- function(target_survival, lambda, eta, sigma2,
+                                      method) {
     if (!requireNamespace("CompQuadForm", quietly = TRUE)) {
         stop(
-            "Package 'CompQuadForm' is required for quantile_method = 'davies'.",
+            "Package 'CompQuadForm' is required for quantile_method = '",
+            method, "'.",
             call. = FALSE
         )
     }
@@ -454,82 +462,95 @@
         ))
     }
 
+    # Invert Q / E[Q], so both the integration and root tolerances are
+    # independent of the trait and branch-length units.
+    scale <- sum(lambda * (eta^2 + sigma2))
+    if (!is.finite(scale) || scale <= 0) {
+        stop("Invalid scale in empirical-variance quantile computation.")
+    }
+    weights <- lambda * sigma2 / scale
     delta2 <- eta^2 / sigma2
-    f <- function(x) {
-        if (x <= 0) {
+    if (method == "liu") {
+        # Invert the same moment-matched chi-square approximation used by
+        # CompQuadForm::liu directly. This avoids repeated CDF evaluations in
+        # remote tails, where pnchisq can warn during root bracketing.
+        c2 <- sum(weights^2 * (1 + 2 * delta2))
+        c3 <- sum(weights^3 * (1 + 3 * delta2))
+        c4 <- sum(weights^4 * (1 + 4 * delta2))
+        s1 <- c3 / c2^1.5
+        s2 <- c4 / c2^2
+        if (s1^2 > s2) {
+            a <- (s1 + sqrt(s1^2 - s2)) / s2
+            ncp <- s1 * a^3 - a^2
+            df <- a^2 - 2 * ncp
+        } else {
+            a <- 1 / s1
+            ncp <- 0
+            df <- c2^3 / c3^2
+        }
+        q <- stats::qchisq(target_survival, df, ncp = ncp, lower.tail = FALSE)
+        value <- 1 + sqrt(c2) / a * (q - df - ncp)
+        if (!is.finite(value) || value < 0) {
+            stop("Liu approximation produced an invalid variance quantile.")
+        }
+        return(scale * value)
+    }
+    f <- function(z) {
+        if (z <= 0) {
             return(1 - target_survival)
         }
-        CompQuadForm::davies(
-            x / sigma2,
-            lambda = lambda,
-            delta = delta2
-        )$Qq - target_survival
+        answer <- .quadratic_form_tail_davies(
+            z, weights, rep(1, length(weights)), delta2, accuracy = 1e-7,
+            limit = 100000L
+        )
+        if (!isTRUE(answer$convergence)) {
+            answer <- .quadratic_form_tail_imhof(
+                z, weights, rep(1, length(weights)), delta2,
+                accuracy = 1e-7
+            )
+        }
+        if (!isTRUE(answer$convergence)) {
+            stop("Empirical-variance quantile CDF did not converge: ",
+                 answer$diagnostic, call. = FALSE)
+        }
+        probability <- answer$probability
+        if (!is.finite(probability) || probability < -1e-6 ||
+            probability > 1 + 1e-6) {
+            stop("Invalid probability in empirical-variance quantile computation.")
+        }
+        min(1, max(0, probability)) - target_survival
     }
 
-    mean_q <- sum(lambda * (eta^2 + sigma2))
-    var_q <- 2 * sum(lambda^2 * (sigma2^2 + 2 * sigma2 * eta^2))
-    upper <- max(mean_q + 10 * sqrt(var_q), .Machine$double.eps)
+    var_q <- 2 * sum(weights^2 * (1 + 2 * delta2))
+    upper <- 1 + 10 * sqrt(var_q)
     f_upper <- f(upper)
 
     while (!is.finite(f_upper) || f_upper > 0) {
         upper <- 2 * upper
         f_upper <- f(upper)
         if (!is.finite(upper) || upper > 1e100) {
-            stop("Could not bracket Davies empirical-variance quantile.")
+            stop("Could not bracket empirical-variance quantile (", method, ").")
         }
     }
 
-    stats::uniroot(
+    scale * stats::uniroot(
         f,
         lower = 0,
         upper = upper,
         f.lower = 1 - target_survival,
-        f.upper = f_upper
+        f.upper = f_upper,
+        tol = 1e-10
     )$root
 }
 
 
+.empvar_quantile_davies <- function(target_survival, lambda, eta, sigma2) {
+    .empvar_quantile_compquad(target_survival, lambda, eta, sigma2, "davies")
+}
+
+
 .empvar_quantile_liu <- function(target_survival, lambda, eta, sigma2) {
-    if (!requireNamespace("CompQuadForm", quietly = TRUE)) {
-        stop(
-            "Package 'CompQuadForm' is required for quantile_method = 'liu'.",
-            call. = FALSE
-        )
-    }
-
-    if (length(lambda) == 0L) {
-        return(0)
-    }
-    if (length(lambda) == 1L) {
-        return(.empvar_quantile_rank1(
-            target_survival, lambda[[1L]], eta[[1L]], sigma2
-        ))
-    }
-
-    delta2 <- eta^2 / sigma2
-    survival <- function(x) {
-        as.numeric(CompQuadForm::liu(
-            x / sigma2,
-            lambda = lambda,
-            delta = delta2
-        ))
-    }
-    f <- function(x) survival(x) - target_survival
-
-    mean_q <- sum(lambda * (eta^2 + sigma2))
-    var_q <- 2 * sum(lambda^2 * (sigma2^2 + 2 * sigma2 * eta^2))
-    upper <- max(mean_q + 10 * sqrt(var_q), .Machine$double.eps)
-    f_upper <- f(upper)
-
-    while (!is.finite(f_upper) || f_upper > 0) {
-        upper <- 2 * upper
-        f_upper <- f(upper)
-        if (!is.finite(upper) || upper > 1e100) {
-            stop("Could not bracket Liu empirical-variance quantile.")
-        }
-    }
-
-    stats::uniroot(f, lower = 0, upper = upper)$root
+    .empvar_quantile_compquad(target_survival, lambda, eta, sigma2, "liu")
 }
 
 
@@ -593,9 +614,12 @@
 
 
 .summarize_empirical_variance <- function(mu, C0, sigma2, probs,
-                                          quantile_method, tol = 1e-12) {
+                                          quantile_method, tol = 1e-12,
+                                          covariance_scale = 0) {
     moments <- .empvar_moments(mu, C0, sigma2)
-    decomposition <- .empvar_decomposition(mu, C0, tol = tol)
+    decomposition <- .empvar_decomposition(
+        mu, C0, tol = tol, covariance_scale = covariance_scale
+    )
     expected_sd <- .empvar_expected_sd(decomposition, sigma2)
     quantiles <- .empvar_quantiles(
         mu, C0, sigma2, probs,

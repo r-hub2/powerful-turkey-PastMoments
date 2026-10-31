@@ -187,3 +187,32 @@ test_that("negligible negative covariance residuals are treated as zero", {
         "negative eigenvalue"
     )
 })
+
+
+test_that("roundoff at node times neither loses tips nor duplicates lineages", {
+    tree <- ape::read.tree(text="((a:0.7,b:0.7):0.1,(c:0.4,d:0.4):0.4);")
+    y <- c(a=-1,b=.5,c=2,d=3)
+    for (scale in c(1e-13,1,1e13)) {
+        tr <- tree
+        tr$edge.length <- tree$edge.length*scale
+        result <- reconstruct_empirical_moments(
+            tr,y,times=c(.1,.1+1e-8,.8)*scale,sigma2=1/scale,
+            quantities="mean"
+        )
+        expect_equal(result$data$n_lineages,c(2L,3L,4L))
+        expect_equal(tail(result$data$expectation,1),mean(y),tolerance=1e-12)
+        expect_error(reconstruct_empirical_moments(
+            tr,y,times=.81*scale,sigma2=1/scale,quantities="mean"
+        ), "cannot exceed")
+    }
+})
+
+
+test_that("PSD diagnostics use the covariance units and cancellation scale", {
+    for (scale in c(1e-13,1,1e13)) {
+        expect_warning(.check_psd(diag(c(-.1,1))*scale),
+                       "not numerically positive semidefinite")
+        expect_warning(.check_psd(-diag(2)*1e-16*scale,
+                                  covariance_scale=scale), NA)
+    }
+})

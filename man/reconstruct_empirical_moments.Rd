@@ -24,7 +24,9 @@ reconstruct_empirical_moments(
 \arguments{
 \item{tree}{A rooted phylogenetic tree of class \code{"phylo"} with branch lengths.}
 
-\item{trait}{Numeric tip values, preferably named by \code{tree$tip.label}.}
+\item{trait}{Finite numeric tip values, preferably named by \code{tree$tip.label}.
+Names must be unique and non-empty. An unnamed vector follows tip order.
+Use \code{\link[=prepare_tree_trait]{prepare_tree_trait()}} to remove tips with missing values first.}
 
 \item{clades}{\code{NULL} for all lineages, a character vector for one focal set,
 or a named list of character vectors for several focal sets.}
@@ -56,7 +58,9 @@ ignored with a warning; an error is raised only when none remain.}
 
 \item{psd_tol}{Relative tolerance used by the PSD diagnostic.}
 
-\item{eigen_tol}{Relative eigenvalue tolerance in quadratic decompositions.}
+\item{eigen_tol}{Relative eigenvalue tolerance in quadratic decompositions.
+Conditional covariances also use the unconditional covariance scale to
+account for subtraction roundoff at observed tips.}
 }
 \value{
 An \code{empirical_moment_reconstruction} object. Its \code{data} component has

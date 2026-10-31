@@ -138,7 +138,12 @@
 
     for (k in seq_along(times)) {
         time <- times[k]
-        active_edges <- which(parent_depth < time & child_depth >= time)
+        # Preserve the parent-open/child-closed convention at node times, while
+        # allowing for roundoff when equivalent root-to-tip paths are summed.
+        time_tol <- 64 * .Machine$double.eps * time
+        active_edges <- which(
+            parent_depth < time - time_tol & child_depth >= time - time_tol
+        )
 
         active <- .compute_active_conditional(
             tree,
@@ -157,7 +162,7 @@
         for (j in seq_along(clade_names)) {
             if (length(prep$tip_indices[[j]]) == 0L ||
                 !is.finite(prep$time_min[j]) ||
-                time < prep$time_min[j]) {
+                time < prep$time_min[j] - time_tol) {
                 next
             }
 
@@ -191,7 +196,10 @@
                         setup$sigma2,
                         variance_probs,
                         quantile_method,
-                        tol = eigen_tol
+                        tol = eigen_tol,
+                        covariance_scale = max(abs(
+                            active$unconditional_covariance0[idx, idx, drop = FALSE]
+                        ))
                     ),
                     error = function(e) {
                         stop(

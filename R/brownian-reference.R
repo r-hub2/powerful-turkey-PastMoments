@@ -47,7 +47,8 @@
 }
 
 
-.quadratic_form_tail_davies <- function(q, weights, df, ncp, accuracy) {
+.quadratic_form_tail_davies <- function(q, weights, df, ncp, accuracy,
+                                        limit = 10000L) {
     if (length(weights) == 1L && weights[[1L]] > 0) {
         probability <- if (q <= 0) {
             1
@@ -68,7 +69,7 @@
     answer <- suppressWarnings(
         CompQuadForm::davies(
             q = q, lambda = weights, h = df, delta = ncp,
-            lim = 10000L, acc = accuracy
+            lim = limit, acc = accuracy
         )
     )
     list(
@@ -121,11 +122,30 @@
              call. = FALSE)
     }
 
+    # A common positive rescaling leaves Pr(Q_conditional > Q_unconditional)
+    # unchanged. Normalize before spectral screening and numerical integration:
+    # otherwise a change of trait units can discard the entire spectrum or
+    # cause Imhof's quadrature to miss its mass. Only the difference of the
+    # deterministic shifts matters; a shared offset must not hide the weights.
+    shift_difference <- conditional_shift - unconditional_shift
+    probability_scale <- max(abs(c(
+        conditional_weights, unconditional_weights, shift_difference
+    )))
+    if (!is.finite(probability_scale)) {
+        stop("Non-finite scale in Brownian variance comparison.", call. = FALSE)
+    }
+    if (probability_scale == 0) {
+        probability_scale <- 1
+    }
+    both_zero <- conditional_shift == 0 && unconditional_shift == 0 &&
+        all(conditional_weights == 0) && all(unconditional_weights == 0)
+
     conditional <- .clean_empvar_spectrum(
-        conditional_weights, conditional_noncentrality, tol, "Conditional"
+        conditional_weights / probability_scale,
+        conditional_noncentrality, tol, "Conditional"
     )
     unconditional <- .clean_empvar_spectrum(
-        unconditional_weights,
+        unconditional_weights / probability_scale,
         rep(0, length(unconditional_weights)),
         tol,
         "Unconditional"
@@ -136,17 +156,12 @@
         rep(0, length(unconditional$weights))
     )
     df <- rep(1, length(weights))
-    conditional_total_shift <- conditional_shift +
-        conditional$discarded_shift
-    unconditional_total_shift <- unconditional_shift +
-        unconditional$discarded_shift
-    shift <- conditional_total_shift - unconditional_total_shift
+    shift <- shift_difference / probability_scale +
+        conditional$discarded_shift - unconditional$discarded_shift
     scale <- max(1, abs(shift), abs(weights))
     zero_tol <- tol * scale
 
     if (length(weights) == 0L) {
-        both_zero <- abs(conditional_total_shift) <= zero_tol &&
-            abs(unconditional_total_shift) <= zero_tol
         probability <- if (both_zero) {
             NA_real_
         } else if (shift > zero_tol) {
@@ -156,10 +171,10 @@
         }
         return(list(
             probability = probability,
-            weights = weights,
+            weights = weights * probability_scale,
             df = df,
             ncp = ncp,
-            shift = shift,
+            shift = shift * probability_scale,
             method = "degenerate",
             convergence = is.finite(probability),
             diagnostic = if (both_zero) {
@@ -237,10 +252,10 @@
 
     list(
         probability = probability,
-        weights = weights,
+        weights = weights * probability_scale,
         df = df,
         ncp = ncp,
-        shift = shift,
+        shift = shift * probability_scale,
         method = method,
         convergence = convergence,
         diagnostic = result$diagnostic

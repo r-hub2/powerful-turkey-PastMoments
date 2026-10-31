@@ -27,6 +27,6 @@ Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-10-31 14:08:31 UTC; gilles
+Packaged: 2026-10-31 22:14:11 UTC; gilles
 Author: Gilles Didier [aut, cre]
 Maintainer: Gilles Didier <gilles.didier@free.fr>

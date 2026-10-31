@@ -8,7 +8,9 @@
 #' variance, and disparity level during one traversal of the time grid.
 #'
 #' @param tree A rooted phylogenetic tree of class `"phylo"` with branch lengths.
-#' @param trait Numeric tip values, preferably named by `tree$tip.label`.
+#' @param trait Finite numeric tip values, preferably named by `tree$tip.label`.
+#'   Names must be unique and non-empty. An unnamed vector follows tip order.
+#'   Use [prepare_tree_trait()] to remove tips with missing values first.
 #' @param clades `NULL` for all lineages, a character vector for one focal set,
 #'   or a named list of character vectors for several focal sets.
 #' @param times Positive times measured from the original root. If `NULL`, a
@@ -29,6 +31,8 @@
 #' @param check_psd Check conditional covariance matrices numerically.
 #' @param psd_tol Relative tolerance used by the PSD diagnostic.
 #' @param eigen_tol Relative eigenvalue tolerance in quadratic decompositions.
+#'   Conditional covariances also use the unconditional covariance scale to
+#'   account for subtraction roundoff at observed tips.
 #'
 #' @return An `empirical_moment_reconstruction` object. Its `data` component has
 #'   one row per time and clade for each requested moment. Variance rows contain

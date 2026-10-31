@@ -161,3 +161,30 @@ test_that("prepare_tree_trait supports named and unnamed vectors", {
         "cannot be used"
     )
 })
+
+
+test_that("reconstruction rejects ambiguous and non-finite traits", {
+    tree <- example_tree()
+    trait <- example_trait()
+    run <- function(y) reconstruct_empirical_moments(
+        tree, y, times=1.5, sigma2=1, quantities="mean"
+    )
+    for (bad_value in c(NA_real_, NaN, Inf, -Inf)) {
+        bad <- trait
+        bad[2] <- bad_value
+        expect_error(run(bad), "finite values")
+        expect_error(run(unname(bad)), "finite values")
+    }
+    expect_error(run(c(trait, a=123)), "unique")
+    bad <- trait
+    names(bad)[1] <- ""
+    expect_error(run(bad), "non-empty")
+    names(bad)[1] <- NA_character_
+    expect_error(run(bad), "non-missing")
+    expect_error(run(factor(trait)), "numeric tip values")
+    expect_error(run(as.character(trait)), "numeric tip values")
+    expect_equal(run(trait)$data, run(unname(trait))$data)
+    expect_equal(run(trait)$data, run(trait[4:1])$data)
+    expect_equal(run(trait)$data,
+                 run(matrix(trait,ncol=1,dimnames=list(names(trait),NULL)))$data)
+})

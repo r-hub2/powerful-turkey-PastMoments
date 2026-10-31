@@ -55,13 +55,14 @@
 }
 
 
-.check_psd <- function(M, name = "matrix", tol = 1e-10) {
+.check_psd <- function(M, name = "matrix", tol = 1e-10,
+                       covariance_scale = 0) {
     if (length(M) == 0L) {
         return(invisible(NA_real_))
     }
 
     ev <- eigen((M + t(M)) / 2, symmetric = TRUE, only.values = TRUE)$values
-    scale <- max(1, max(abs(ev)))
+    scale <- max(covariance_scale, abs(ev))
 
     if (min(ev) < -tol * scale) {
         warning(sprintf(
@@ -564,7 +565,15 @@ prepare_tree_trait <- function(tree, traits, trait_col = 1L,
         }
     }
 
+    if (!is.numeric(trait) || !is.null(dim(trait))) {
+        stop(name, " must contain numeric tip values.")
+    }
     trait_names <- names(trait)
+    if (!is.null(trait_names) &&
+        (anyNA(trait_names) || any(!nzchar(trait_names)) ||
+         anyDuplicated(trait_names))) {
+        stop(name, " names must be non-missing, non-empty, and unique.")
+    }
     trait <- as.numeric(trait)
     if (!is.null(trait_names)) {
         names(trait) <- trait_names
@@ -578,7 +587,6 @@ prepare_tree_trait <- function(tree, traits, trait_col = 1L,
             )
         }
         names(trait) <- tree$tip.label
-        return(trait)
     }
 
     missing_tips <- setdiff(tree$tip.label, names(trait))
@@ -591,8 +599,9 @@ prepare_tree_trait <- function(tree, traits, trait_col = 1L,
     }
 
     trait <- trait[tree$tip.label]
-    if (anyNA(trait)) {
-        stop(name, " contains NA after matching to tree$tip.label.")
+    if (any(!is.finite(trait))) {
+        stop(name, " must contain finite values for every tree tip; ",
+             "use prepare_tree_trait() to remove tips with missing values.")
     }
 
     names(trait) <- tree$tip.label
@@ -683,7 +692,7 @@ prepare_tree_trait <- function(tree, traits, trait_col = 1L,
         stop("times must contain finite values.")
     }
 
-    tol <- 1e-12 * max(1, total_depth)
+    tol <- 64 * .Machine$double.eps * total_depth
     if (any(times <= 0)) {
         stop("times must be strictly positive; time 0 is not represented.")
     }

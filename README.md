@@ -83,7 +83,7 @@ plot(
 ```
 
 This envelope describes expected empirical spread among contemporaneous
-lineages. It is not an uncertainty interval for the empirical mean. Use
+lineages. It is not an uncertainty interval for the empirical mean.
 Use `mean_envelope = "none"` to suppress it. The central curve is controlled
 independently with `mean_display = "expectation"` or `"none"`. Likewise,
 `variance_display` selects `"both"`, `"expectation"`, `"median"`, or `"none"`.

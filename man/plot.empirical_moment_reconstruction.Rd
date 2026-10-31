@@ -46,8 +46,9 @@ the optional disparity-level panel must be requested explicitly. Panels are
 drawn in canonical order.}
 
 \item{colors, palette}{Clade colours or an HCL palette name. \code{colors} may be
-a vector named by clade; unspecified colours are taken from \code{palette},
-whose default is \code{"Dark 3"}.}
+a vector named by clade or an unnamed vector in clade order, and must
+supply every clade. When \code{colors = NULL}, \code{palette} is used;
+its default is \code{"Dark 3"}.}
 
 \item{mean_display}{Whether to draw the expected empirical mean:
 \code{"expectation"} (default) or \code{"none"}.}
@@ -142,8 +143,8 @@ moment panel, but not the optional disparity-level panel. Irrespective of the
 supplied order, panels are drawn in canonical
 tree--mean--variance--disparity_level order.
 \item \code{colors = NULL}: clade colours. A named vector matches colours to clade
-names; missing or unnamed colours are completed from \code{palette}.
-\item \code{palette = "Dark 3"}: HCL palette used to generate missing clade colours.
+names; an unnamed vector follows clade order. Every clade needs a colour.
+\item \code{palette = "Dark 3"}: HCL palette used when \code{colors = NULL}.
 \item \code{legend_pos = "topright"}: position of the clade legend, using any value
 accepted by \code{\link[graphics:legend]{graphics::legend()}}; \code{FALSE} or \code{NULL} suppresses it.
 \item \code{common_style = list()}: styles shared by the mean and variance panels.

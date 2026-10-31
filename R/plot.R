@@ -918,6 +918,7 @@
     time_start = NULL,
     xlim = NULL,
     mean_ylim = NULL,
+    mean_ylim_expand = 0.06,
     variance_ylim = NULL,
     mean_ylab = "Empirical mean",
     variance_ylab = "Empirical variance",
@@ -1052,6 +1053,7 @@
             envelope_alpha = mean_halo_alpha,
             envelope_lwd = mean_envelope_lwd,
             envelope_lty = mean_envelope_lty,
+            ylim_expand = mean_ylim_expand,
             show_expectation = mean_expectation,
             expectation_lwd = mean_expectation_lwd,
             halo_style = mean_halo_style,
@@ -1744,6 +1746,7 @@
     time_start = NULL,
     xlim = NULL,
     mean_ylim = NULL,
+    mean_ylim_expand = 0.06,
     variance_ylim = NULL,
     mean_ylab = "Empirical mean",
     variance_ylab = "Empirical variance",
@@ -2011,8 +2014,12 @@
     } else {
         trait_text_layout$margin
     }
-    tree_bottom_margin <- if (n_moment_panels > 0L) 0 else trait_label_margin
-    if (geological_scale && n_moment_panels > 0L) {
+    tree_bottom_margin <- if (n_moment_panels > 0L || geological_scale) {
+        0
+    } else {
+        max(trait_label_margin, moment_text_layout$margin)
+    }
+    if (geological_scale) {
         geological_margin <- .geological_axis_margin(
             moment_text_layout, cex.axis, geological_periods
         )
@@ -2064,6 +2071,24 @@
         .redraw_phylogram_edges(cw, tree_colors$edge, tree_lwd)
     }
 
+    if (n_moment_panels == 0L) {
+        if (geological_scale) {
+            .draw_geological_time_axis(
+                xlim, present_time, geological_periods,
+                cex.axis = cex.axis, cex.lab = cex.lab
+            )
+        } else {
+            .draw_time_axis(xlim, time_orientation, present_time,
+                            cex.axis = cex.axis)
+            graphics::title(
+                xlab = if (time_orientation == "from_root") {
+                    "Time from root"
+                } else "Time before present",
+                cex.lab = cex.lab
+            )
+        }
+    }
+
     ## --- Terminal trait bars ---------------------------------------------
     graphics::par(
         mar = c(tree_bottom_margin, 0.2, 0.8, 1.0),
@@ -2102,7 +2127,7 @@
         # unused. Draw the annotations into that free area so the two top-row
         # panels can keep identical zero bottom margins without moving the
         # trait axis inside the plot.
-        annotation_xpd <- if (n_moment_panels > 0L) NA else FALSE
+        annotation_xpd <- if (n_moment_panels > 0L || geological_scale) NA else FALSE
         graphics::axis(
             1, cex.axis = tree_cex.axis, mgp = trait_text_layout$mgp,
             xpd = annotation_xpd
@@ -2151,6 +2176,7 @@
                 envelope_alpha = mean_halo_alpha,
                 envelope_lwd = mean_envelope_lwd,
                 envelope_lty = mean_envelope_lty,
+                ylim_expand = mean_ylim_expand,
                 show_expectation = mean_expectation,
                 expectation_lwd = mean_expectation_lwd,
                 halo_style = mean_halo_style,
@@ -2387,8 +2413,9 @@
 #'   the optional disparity-level panel must be requested explicitly. Panels are
 #'   drawn in canonical order.
 #' @param colors,palette Clade colours or an HCL palette name. `colors` may be
-#'   a vector named by clade; unspecified colours are taken from `palette`,
-#'   whose default is `"Dark 3"`.
+#'   a vector named by clade or an unnamed vector in clade order, and must
+#'   supply every clade. When `colors = NULL`, `palette` is used;
+#'   its default is `"Dark 3"`.
 #' @param mean_display Whether to draw the expected empirical mean:
 #'   `"expectation"` (default) or `"none"`.
 #' @param mean_envelope Envelope around the mean: conditional quantiles,
@@ -2455,8 +2482,8 @@
 #'   supplied order, panels are drawn in canonical
 #'   tree--mean--variance--disparity_level order.
 #' - `colors = NULL`: clade colours. A named vector matches colours to clade
-#'   names; missing or unnamed colours are completed from `palette`.
-#' - `palette = "Dark 3"`: HCL palette used to generate missing clade colours.
+#'   names; an unnamed vector follows clade order. Every clade needs a colour.
+#' - `palette = "Dark 3"`: HCL palette used when `colors = NULL`.
 #' - `legend_pos = "topright"`: position of the clade legend, using any value
 #'   accepted by [graphics::legend()]; `FALSE` or `NULL` suppresses it.
 #' - `common_style = list()`: styles shared by the mean and variance panels.
@@ -2847,6 +2874,10 @@ plot.empirical_moment_reconstruction <- function(
                        envelope_lty = 3, ylim_expand = 0.06)),
         mean_style
     )
+    if (!is.numeric(mean$ylim_expand) || length(mean$ylim_expand) != 1L ||
+        !is.finite(mean$ylim_expand) || mean$ylim_expand < 0) {
+        stop("mean_style$ylim_expand must be a finite nonnegative scalar.")
+    }
     variance <- utils::modifyList(
         c(common, list(ylim = NULL, ylab = "Empirical variance",
                        median_lwd = 1.3, median_lty = 2)),
@@ -2902,6 +2933,7 @@ plot.empirical_moment_reconstruction <- function(
             mean_expectation_lwd = mean$expectation_lwd,
             mean_envelope_lwd = mean$envelope_lwd,
             mean_envelope_lty = mean$envelope_lty,
+            mean_ylim_expand = mean$ylim_expand,
             variance_expectation_lwd = variance$expectation_lwd,
             variance_median_lwd = variance$median_lwd,
             variance_median_lty = variance$median_lty,
@@ -2951,6 +2983,7 @@ plot.empirical_moment_reconstruction <- function(
             mean_expectation_lwd = mean$expectation_lwd,
             mean_envelope_lwd = mean$envelope_lwd,
             mean_envelope_lty = mean$envelope_lty,
+            mean_ylim_expand = mean$ylim_expand,
             variance_expectation_lwd = variance$expectation_lwd,
             variance_median_lwd = variance$median_lwd,
             variance_median_lty = variance$median_lty,
