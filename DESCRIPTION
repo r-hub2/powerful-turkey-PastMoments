@@ -1,0 +1,32 @@
+Package: PastMoments
+Type: Package
+Title: Reconstruct Empirical Moments of Traits Through Phylogenetic
+        Time
+Version: 0.1
+Authors@R: c(
+    person(
+        given = "Gilles",
+        family = "Didier",
+        role = c("aut", "cre"),
+        email = "gilles.didier@free.fr"
+    )
+    )
+Description: Reconstructs the conditional empirical mean, empirical variance,
+    and expected empirical standard deviation of continuous traits through
+    time on rooted phylogenetic trees.
+    Brownian models are supported, together with clade-specific
+    reconstructions, analytic moments, optional quantiles
+    of Gaussian quadratic forms, exact unconditional Brownian
+    empirical-variance comparisons, and graphical summaries.
+License: GPL (>= 3)
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: ape, CompQuadForm, graphics, grDevices, stats, utils
+Suggests: palaeoverse, Qapprox, testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.0.0
+NeedsCompilation: no
+Packaged: 2026-10-31 14:08:31 UTC; gilles
+Author: Gilles Didier [aut, cre]
+Maintainer: Gilles Didier <gilles.didier@free.fr>

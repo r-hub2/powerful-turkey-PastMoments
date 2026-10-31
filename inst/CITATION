@@ -1,0 +1,7 @@
+utils::bibentry(
+    bibtype = "Manual",
+    title = "PastMoments: Reconstruction of Empirical Trait Moments through Time",
+    author = utils::personList(utils::as.person("Gilles Didier")),
+    year = format(Sys.Date(), "%Y"),
+    note = "R package version 0.1"
+)

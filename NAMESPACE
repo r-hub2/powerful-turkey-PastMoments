@@ -1,0 +1,11 @@
+# Exported functions and registered S3 methods
+S3method(as.data.frame,empirical_moment_reconstruction)
+S3method(plot,empirical_moment_reconstruction)
+S3method(print,empirical_moment_reconstruction)
+export(make_clade_colors)
+export(make_tips_contemporaneous)
+export(compute_node_depths)
+export(prepare_tree_trait)
+export(reconstruct_empirical_moments)
+importFrom(stats,setNames)
+importFrom(utils,head)
