@@ -317,7 +317,13 @@ clade colour.
 }
 }
 \examples{
-\dontrun{
+tree <- ape::read.tree(text = "((a:1,b:1):1,(c:1,d:1):1);")
+trait <- c(a = -1, b = 0.5, c = 2, d = 3)
+reconstruction <- reconstruct_empirical_moments(
+    tree, trait, times = seq(0.1, 2, length.out = 20), sigma2 = 1,
+    variance_probs = c(0.25, 0.5, 0.75), quantile_method = "davies"
+)
+
 # Give the tree exactly 40\% of the total figure height.
 plot(reconstruction, tree_style = list(tree_fraction = 0.4))
 
@@ -337,15 +343,16 @@ plot(
 
 # Stack stages, periods, and eras, and customise their labels. The first
 # rank supplies the transparent geological backgrounds.
-plot(
-  reconstruction,
-  time_orientation = "before_present",
-  geological_scale = TRUE,
-  geological_rank = c("stage", "period", "era"),
-  geological_axis_args = list(abbr = TRUE, rot = 45)
-)
+if (requireNamespace("palaeoverse", quietly = TRUE)) {
+    plot(
+        reconstruction,
+        time_orientation = "before_present",
+        geological_scale = TRUE,
+        geological_rank = c("stage", "period", "era"),
+        geological_axis_args = list(abbr = TRUE, rot = 45)
+    )
+}
 
 # Display the optional Brownian probability-of-superiority curve.
-plot(reconstruction_with_reference, panels = c("variance", "disparity_level"))
-}
+plot(reconstruction, panels = c("variance", "disparity_level"))
 }

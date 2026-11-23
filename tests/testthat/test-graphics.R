@@ -79,16 +79,20 @@ test_that("geological strip height follows typography, not device height", {
     physical_heights <- numeric(2L)
 
     for (i in seq_along(physical_heights)) {
-        filename <- tempfile(fileext = ".pdf")
-        grDevices::pdf(filename, width = 7, height = c(6, 11)[i])
-        graphics::plot.new()
-        graphics::plot.window(xlim = c(0, 1), ylim = c(0, 1))
-        fraction <- PastMoments:::.geological_strip_height(
-            periods, cex.axis = 1, cex.lab = 1.35
-        )
-        physical_heights[i] <- fraction * graphics::par("pin")[2L]
-        grDevices::dev.off()
-        unlink(filename)
+        physical_heights[i] <- local({
+            filename <- tempfile(fileext = ".pdf")
+            grDevices::pdf(filename, width = 7, height = c(6, 11)[i])
+            on.exit({
+                grDevices::dev.off()
+                unlink(filename)
+            }, add = TRUE)
+            graphics::plot.new()
+            graphics::plot.window(xlim = c(0, 1), ylim = c(0, 1))
+            fraction <- PastMoments:::.geological_strip_height(
+                periods, cex.axis = 1, cex.lab = 1.35
+            )
+            fraction * graphics::par("pin")[2L]
+        })
     }
 
     expect_equal(physical_heights[1L], physical_heights[2L])
@@ -645,4 +649,65 @@ test_that("a tree-only geological plot draws its time axis", {
     expect_identical(calls, 1L)
     expect_true(info$geological_scale)
     expect_equal(graphics::par("oma"), before)
+})
+
+
+test_that("plotting restores user settings on success and error", {
+    x <- reconstruct_empirical_moments(
+        example_tree(), example_trait(), times = c(0.5, 1.5, 2), sigma2 = 1,
+        variance_probs = NULL
+    )
+    grDevices::pdf(NULL, width = 12, height = 12)
+    on.exit(grDevices::dev.off(), add = TRUE)
+    before_options <- options()
+    before_wd <- getwd()
+    panel_sets <- list(
+        "mean", "variance", "disparity_level", "tree",
+        c("mean", "variance"), c("mean", "disparity_level"),
+        c("variance", "disparity_level"),
+        c("tree", "mean", "variance", "disparity_level")
+    )
+
+    exercise_plots <- function(fail) {
+        if (fail) {
+            # This drawing step runs after the plot has changed par().
+            testthat::local_mocked_bindings(
+                .draw_geological_background = function(...) {
+                    stop("Simulated drawing failure")
+                },
+                .package = "PastMoments"
+            )
+        }
+        for (layout in c("single", "multiple", "region")) {
+            for (panels in panel_sets) {
+                graphics::par(
+                    mfrow = if (layout == "multiple") c(2, 2) else c(1, 1)
+                )
+                if (layout == "region") {
+                    graphics::par(fig = c(0.1, 0.8, 0.2, 0.9))
+                }
+                graphics::par(
+                    mar = c(4, 4, 2, 1), oma = c(0.5, 0.2, 0.3, 0.4),
+                    mgp = c(2.5, 0.8, 0), cex = 0.9, mex = 1.2
+                )
+                graphics::plot.new()
+                before_par <- graphics::par(no.readonly = TRUE)
+                if (fail) {
+                    expect_error(
+                        plot(x, panels = panels, variance_envelope_style = "none"),
+                        "Simulated drawing failure"
+                    )
+                } else {
+                    expect_invisible(
+                        plot(x, panels = panels, variance_envelope_style = "none")
+                    )
+                }
+                expect_equal(graphics::par(no.readonly = TRUE), before_par)
+            }
+        }
+    }
+    exercise_plots(FALSE)
+    exercise_plots(TRUE)
+    expect_identical(options(), before_options)
+    expect_identical(getwd(), before_wd)
 })

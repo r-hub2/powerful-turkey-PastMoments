@@ -16,7 +16,7 @@ or from the source archive:
 
 ```r
 install.packages(
-    "PastMoments_0.1.tar.gz",
+    "PastMoments_0.1.1.tar.gz",
     repos = NULL,
     type = "source"
 )

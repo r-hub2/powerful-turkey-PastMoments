@@ -2,6 +2,17 @@
 ## Private panel renderers
 ## =============================================================================
 
+.restore_graphical_parameters <- function(oldpar) {
+    # Restoring mfrow/mfcol resets cex, mex and the current panel. Restore
+    # these dependent settings afterwards, with new last because mfg sets it.
+    last <- c("cex", "mex", "mar", "oma", "mfg", "new")
+    if (all(oldpar$mfrow == 1L)) {
+        # A single figure may also occupy a user-defined region of the device.
+        last <- c("cex", "mex", "oma", "mfg", "fig", "mar", "new")
+    }
+    graphics::par(oldpar[c(setdiff(names(oldpar), last), last)])
+}
+
 .axis_text_layout <- function(cex.lab, cex.axis, minimum_margin = 4.2) {
     values <- c(cex.lab = cex.lab, cex.axis = cex.axis)
     if (!is.numeric(values) || any(!is.finite(values)) || any(values <= 0)) {
@@ -723,7 +734,7 @@
     oldpar <- graphics::par(no.readonly = TRUE)
     on.exit({
         graphics::layout(matrix(1L))
-        graphics::par(oldpar)
+        .restore_graphical_parameters(oldpar)
     }, add = TRUE)
     text_layout <- .axis_text_layout(cex.lab, cex.axis)
     geological_scale <- !is.null(geological_periods)
@@ -793,7 +804,7 @@
     oldpar <- graphics::par(no.readonly = TRUE)
     on.exit({
         graphics::layout(matrix(1L))
-        graphics::par(oldpar)
+        .restore_graphical_parameters(oldpar)
     }, add = TRUE)
     text_layout <- .axis_text_layout(cex.lab, cex.axis)
     geological_scale <- !is.null(geological_periods)
@@ -1001,7 +1012,7 @@
     oldpar <- graphics::par(no.readonly = TRUE)
     on.exit({
         graphics::layout(matrix(1L))
-        graphics::par(oldpar)
+        .restore_graphical_parameters(oldpar)
     }, add = TRUE)
 
     if (!is.logical(show_disparity) ||
@@ -2002,7 +2013,7 @@
     oldpar <- graphics::par(no.readonly = TRUE)
     on.exit({
         graphics::layout(matrix(1L))
-        graphics::par(oldpar)
+        .restore_graphical_parameters(oldpar)
     }, add = TRUE)
 
     moment_text_layout <- .axis_text_layout(cex.lab, cex.axis)
@@ -2638,7 +2649,13 @@
 #'   clade colour.
 #'
 #' @examples
-#' \dontrun{
+#' tree <- ape::read.tree(text = "((a:1,b:1):1,(c:1,d:1):1);")
+#' trait <- c(a = -1, b = 0.5, c = 2, d = 3)
+#' reconstruction <- reconstruct_empirical_moments(
+#'     tree, trait, times = seq(0.1, 2, length.out = 20), sigma2 = 1,
+#'     variance_probs = c(0.25, 0.5, 0.75), quantile_method = "davies"
+#' )
+#'
 #' # Give the tree exactly 40% of the total figure height.
 #' plot(reconstruction, tree_style = list(tree_fraction = 0.4))
 #'
@@ -2658,17 +2675,18 @@
 #'
 #' # Stack stages, periods, and eras, and customise their labels. The first
 #' # rank supplies the transparent geological backgrounds.
-#' plot(
-#'   reconstruction,
-#'   time_orientation = "before_present",
-#'   geological_scale = TRUE,
-#'   geological_rank = c("stage", "period", "era"),
-#'   geological_axis_args = list(abbr = TRUE, rot = 45)
-#' )
+#' if (requireNamespace("palaeoverse", quietly = TRUE)) {
+#'     plot(
+#'         reconstruction,
+#'         time_orientation = "before_present",
+#'         geological_scale = TRUE,
+#'         geological_rank = c("stage", "period", "era"),
+#'         geological_axis_args = list(abbr = TRUE, rot = 45)
+#'     )
+#' }
 #'
 #' # Display the optional Brownian probability-of-superiority curve.
-#' plot(reconstruction_with_reference, panels = c("variance", "disparity_level"))
-#' }
+#' plot(reconstruction, panels = c("variance", "disparity_level"))
 #' @rdname plot.empirical_moment_reconstruction
 #' @export
 plot.empirical_moment_reconstruction <- function(
@@ -3101,7 +3119,7 @@ plot.empirical_moment_reconstruction <- function(
     # are not clipped.
     text_layout <- .axis_text_layout(common$cex.lab, common$cex.axis)
     oldpar <- graphics::par(no.readonly = TRUE)
-    on.exit(graphics::par(oldpar), add = TRUE)
+    on.exit(.restore_graphical_parameters(oldpar), add = TRUE)
     current_mar <- graphics::par("mar")
     geological_margin <- .geological_axis_margin(
         text_layout, common$cex.axis, geological_periods

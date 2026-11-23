@@ -83,6 +83,7 @@ result$data
 
 }
 \references{
-Didier, G. (draft). \emph{Phylogenetic reconstruction of trait
-summary statistics and disparity dynamics}.
+Didier, G. (2026). \emph{Phylogenetic reconstruction of trait
+summary statistics and disparity dynamics}. bioRxiv.
+\doi{10.64898/2026.08.16.745082}.
 }

@@ -20,10 +20,12 @@ reconstruction <- PastMoments::reconstruct_empirical_moments(
     quantities = c("mean", "variance", "disparity_level")
 )
 
-grDevices::png(output_file, width = 1200, height = 1400, res = 140)
-plot(
-    reconstruction,
-    variance_envelope_style = "none",
-    panels = c("tree", "mean", "variance", "disparity_level")
-)
-grDevices::dev.off()
+local({
+    grDevices::png(output_file, width = 1200, height = 1400, res = 140)
+    on.exit(grDevices::dev.off(), add = TRUE)
+    plot(
+        reconstruction,
+        variance_envelope_style = "none",
+        panels = c("tree", "mean", "variance", "disparity_level")
+    )
+})

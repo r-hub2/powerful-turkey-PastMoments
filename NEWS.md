@@ -1,3 +1,10 @@
+# PastMoments 0.1.1
+
+* Added the methodological bioRxiv reference and DOI to DESCRIPTION and help.
+* Made the plotting examples self-contained and executable during checks.
+* Preserved user graphical settings, including custom text scaling, when
+  plotting finishes or fails, with regression tests for both cases.
+
 # PastMoments 0.1
 
 * Initial package structure.

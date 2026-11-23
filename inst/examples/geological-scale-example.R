@@ -21,12 +21,14 @@ reconstruction <- PastMoments::reconstruct_empirical_moments(
     variance_probs = c(0.1, 0.5, 0.9)
 )
 
-grDevices::png(output_file, width = 1200, height = 1000, res = 120)
-plot(
-    reconstruction,
-    time_orientation = "before_present",
-    geological_scale = TRUE,
-    geological_rank = c("stage", "period", "era"),
-    geological_axis_args = list(abbr = TRUE, lab_size = 0.8)
-)
-grDevices::dev.off()
+local({
+    grDevices::png(output_file, width = 1200, height = 1000, res = 120)
+    on.exit(grDevices::dev.off(), add = TRUE)
+    plot(
+        reconstruction,
+        time_orientation = "before_present",
+        geological_scale = TRUE,
+        geological_rank = c("stage", "period", "era"),
+        geological_axis_args = list(abbr = TRUE, lab_size = 0.8)
+    )
+})

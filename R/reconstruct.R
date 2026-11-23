@@ -40,8 +40,9 @@
 #'   `disparity_level`. Quantile columns are named from their probabilities, for
 #'   example `q25`, `q50`, and `q75`.
 #'
-#' @references Didier, G. (draft). *Phylogenetic reconstruction of trait
-#'   summary statistics and disparity dynamics*.
+#' @references Didier, G. (2026). *Phylogenetic reconstruction of trait
+#'   summary statistics and disparity dynamics*. bioRxiv.
+#'   \doi{10.64898/2026.08.16.745082}.
 #'
 #' @examples
 #' tree <- ape::read.tree(text = "((a:1,b:1):1,(c:1,d:1):1);")

@@ -2,7 +2,7 @@ Package: PastMoments
 Type: Package
 Title: Reconstruct Empirical Moments of Traits Through Phylogenetic
         Time
-Version: 0.1
+Version: 0.1.1
 Authors@R: c(
     person(
         given = "Gilles",
@@ -18,6 +18,8 @@ Description: Reconstructs the conditional empirical mean, empirical variance,
     reconstructions, analytic moments, optional quantiles
     of Gaussian quadratic forms, exact unconditional Brownian
     empirical-variance comparisons, and graphical summaries.
+    The methods are described in Didier (2026)
+    <doi:10.64898/2026.08.16.745082>.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
@@ -27,6 +29,6 @@ Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-10-31 22:14:11 UTC; gilles
+Packaged: 2026-11-18 23:33:35 UTC; gilles
 Author: Gilles Didier [aut, cre]
 Maintainer: Gilles Didier <gilles.didier@free.fr>
